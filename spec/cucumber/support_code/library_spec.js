@@ -65,6 +65,11 @@ describe("Cucumber.SupportCode.Library", function() {
         expect(supportCodeHelper.After).toBe(library.defineAfterHook);
       });
 
+      it("exposes a method to define AfterAll hooks", function() {
+        expect(supportCodeHelper.AfterAll).toBeAFunction();
+        expect(supportCodeHelper.AfterAll).toBe(library.defineAfterAllHook);
+      });
+
       it("exposes a method to define Given steps", function() {
         expect(supportCodeHelper.Given).toBeAFunction();
         expect(supportCodeHelper.Given).toBe(library.defineStep);
@@ -170,6 +175,10 @@ describe("Cucumber.SupportCode.Library", function() {
     });
   });
 
+  describe("afterAllHooksFunction", function() {
+    expect(false).toBe(true);
+  });
+
   describe("defineAroundHook()", function() {
     var code;
 
@@ -248,6 +257,33 @@ describe("Cucumber.SupportCode.Library", function() {
       var tagGroup2 = createSpy("tag group 2");
       library.defineAfterHook(tagGroup1, tagGroup2, code);
       expect(hooker.addAfterHookCode).toHaveBeenCalledWith(code, {tags: [tagGroup1, tagGroup2]});
+    });
+  });
+
+  describe("defineAfterAllHook()", function() {
+    var code;
+
+    beforeEach(function() {
+      code = createSpy("hook code");
+      spyOnStub(hooker, 'addAfterAllHookCode');
+    });
+
+    it("instructs the hooker to use the code as an afterAll hook", function() {
+      library.defineAfterAllHook(code);
+      expect(hooker.addAfterAllHookCode).toHaveBeenCalledWith(code, {tags: []});
+    });
+
+    it("instructs the hooker to use the code as an afterAll hook with a tag group", function() {
+      var tagGroup = createSpy("tag group");
+      library.defineAfterAllHook(tagGroup, code);
+      expect(hooker.addAfterAllHookCode).toHaveBeenCalledWith(code, {tags: [tagGroup]});
+    });
+
+    it("instructs the hooker to use the code as an after hook with tag groups", function() {
+      var tagGroup1 = createSpy("tag group 1");
+      var tagGroup2 = createSpy("tag group 2");
+      library.defineAfterAllHook(tagGroup1, tagGroup2, code);
+      expect(hooker.addAfterAllHookCode).toHaveBeenCalledWith(code, {tags: [tagGroup1, tagGroup2]});
     });
   });
 

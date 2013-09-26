@@ -10,6 +10,26 @@ describe("Cucumber.SupportCode.Hook", function() {
     hook    = Cucumber.SupportCode.Hook(code, options);
   });
 
+  describe("invoke()", function() {
+    var world, callback;
+
+    beforeEach(function() {
+      world     = createSpy("world");
+      callback  = createSpy("callback");
+    });
+
+    it("calls the code with the world instance as this", function() {
+      hook.invoke(world, callback);
+      expect(code).toHaveBeenCalledWith(callback);
+      expect(code.mostRecentCall.object).toBe(world);
+    });
+
+    it("does not call back", function() {
+      hook.invoke(world, callback);
+      expect(callback).not.toHaveBeenCalled();
+    });
+  });
+
   describe("invokeBesideScenario()", function() {
     var scenario, world, callback;
 
@@ -18,6 +38,7 @@ describe("Cucumber.SupportCode.Hook", function() {
       world     = createSpy("world");
       callback  = createSpy("callback");
       spyOn(hook, 'appliesToScenario');
+      spyOn(hook, 'invoke');
     });
 
     it("checks whether the hook applies to this scenario or not", function() {
@@ -30,10 +51,9 @@ describe("Cucumber.SupportCode.Hook", function() {
         hook.appliesToScenario.andReturn(true);
       });
 
-      it("calls the code with the world instance as this", function() {
+      it("calls invoke with world and callback", function() {
         hook.invokeBesideScenario(scenario, world, callback);
-        expect(code).toHaveBeenCalledWith(callback);
-        expect(code.mostRecentCall.object).toBe(world);
+        expect(hook.invoke).toHaveBeenCalledWith(world, callback);
       });
 
       it("does not call back", function() {

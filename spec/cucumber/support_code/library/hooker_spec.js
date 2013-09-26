@@ -2,20 +2,21 @@ require('../../../support/spec_helper');
 
 describe("Cucumber.SupportCode.Library.Hooker", function() {
   var Cucumber = requireLib('cucumber');
-  var hooker, aroundHooks, beforeHooks, afterHooks;
+  var hooker, aroundHooks, beforeHooks, afterHooks, afterAllHooks;
 
   beforeEach(function() {
     aroundHooks = createSpy("around hook collection");
     beforeHooks = createSpy("before hook collection");
     afterHooks  = createSpy("after hook collection");
-    spyOn(Cucumber.Type, 'Collection').andReturnSeveral([aroundHooks, beforeHooks, afterHooks]);
+    afterAllHooks = createSpy("afterAll hook collection");
+    spyOn(Cucumber.Type, 'Collection').andReturnSeveral([aroundHooks, beforeHooks, afterHooks, afterAllHooks]);
     hooker = Cucumber.SupportCode.Library.Hooker();
   });
 
   describe("constructor", function() {
-    it("creates collections of around, before and after hooks", function() {
+    it("creates collections of around, before, after and afterall hooks", function() {
       expect(Cucumber.Type.Collection).toHaveBeenCalled();
-      expect(Cucumber.Type.Collection.callCount).toBe(3);
+      expect(Cucumber.Type.Collection.callCount).toBe(4);
     });
   });
 
@@ -82,6 +83,28 @@ describe("Cucumber.SupportCode.Library.Hooker", function() {
     it("prepends the after hook to the after hook collection", function() {
       hooker.addAfterHookCode(code, options);
       expect(afterHooks.unshift).toHaveBeenCalledWith(afterHook);
+    });
+  });
+
+  describe("addAfterAllHookCode", function() {
+    var afterAllHook, code, options;
+
+    beforeEach(function() {
+      code      = createSpy("afterAll code");
+      options   = createSpy("options");
+      afterAllHook = createSpy("afterAll hook");
+      spyOn(Cucumber.SupportCode, "Hook").andReturn(afterAllHook);
+      spyOnStub(afterAllHooks, "unshift");
+    });
+
+    it("creates an afterAll hook with the code", function() {
+      hooker.addAfterAllHookCode(code, options);
+      expect(Cucumber.SupportCode.Hook).toHaveBeenCalledWith(code, options);
+    });
+
+    it("prepends the afterAll hook to the afterAll hook collection", function() {
+      hooker.addAfterAllHookCode(code, options);
+      expect(afterAllHooks.unshift).toHaveBeenCalledWith(afterAllHook);
     });
   });
 
@@ -244,6 +267,39 @@ describe("Cucumber.SupportCode.Library.Hooker", function() {
             });
           });
         });
+      });
+    });
+  });
+
+  describe("triggerAfterAllHooks", function() {
+    var world, callback;
+
+    beforeEach(function() {
+      world    = createSpy("world");
+      callback = createSpy("callback");
+      spyOnStub(afterAllHooks, 'forEach');
+    });
+
+    it("iterates over the afterAll hooks", function() {
+      hooker.triggerAfterAllHooks(world, callback);
+      expect(afterAllHooks.forEach).toHaveBeenCalled();
+      expect(afterAllHooks.forEach).toHaveBeenCalledWithAFunctionAsNthParameter(1);
+      expect(afterAllHooks.forEach).toHaveBeenCalledWithValueAsNthParameter(callback, 2);
+    });
+
+    describe("for each afterAll hook", function () {
+      var afterAllHook, forEachAfterAllHookFunction, forEachAfterAllHookFunctionCallback;
+
+      beforeEach(function() {
+        hooker.triggerAfterAllHooks(world, callback);
+        forEachAfterAllHookFunction = afterAllHooks.forEach.mostRecentCall.args[0];
+        forEachAfterAllHookFunctionCallback = createSpy("for each afterAll hook iteration callback");
+        afterAllHook = createSpyWithStubs("afterAll hook", {invoke: null});
+      });
+
+      it("invokes the hook", function() {
+        forEachAfterAllHookFunction(afterAllHook, forEachAfterAllHookFunctionCallback);
+        expect(afterAllHook.invoke).toHaveBeenCalledWith(world, forEachAfterAllHookFunctionCallback);
       });
     });
   });

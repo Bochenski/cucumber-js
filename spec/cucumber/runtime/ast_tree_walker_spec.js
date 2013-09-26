@@ -36,6 +36,7 @@ describe("Cucumber.Runtime.AstTreeWalker", function() {
         featuresVisitCallback = treeWalker.visitFeatures.mostRecentCall.args[1];
         featuresResult = createSpy("result of all features");
         spyOn(treeWalker, 'didAllFeaturesSucceed').andReturn(featuresResult);
+        spyOnStub(supportCodeLibrary, 'instantiateNewWorld');
       });
 
       it("checks whether all features were successful", function() {
@@ -43,10 +44,75 @@ describe("Cucumber.Runtime.AstTreeWalker", function() {
         expect(treeWalker.didAllFeaturesSucceed).toHaveBeenCalled();
       });
 
-      it("calls back with the result of the features", function() {
-        featuresVisitCallback();
-        expect(callback).toHaveBeenCalledWith(featuresResult);
+      it("instantiates a new World instance asynchronously", function() {
+        expect(supportCodeLibrary.instantiateNewWorld).toHaveBeenCalled();
+        expect(supportCodeLibrary.instantiateNewWorld).toHaveBeenCalledWithAFunctionAsNthParameter(1);
       });
+
+      describe("on world instantiation completion", function() {
+        var worldInstantiationCompletionCallback;
+        var world, event, payload;
+        var hookedUpScenarioVisit;
+
+        beforeEach(function() {
+          worldInstantiationCompletionCallback = supportCodeLibrary.instantiateNewWorld.mostRecentCall.args[0];
+          world                 = createSpy("world instance");
+          event                 = createSpy("afterAll event");
+          hookedUpScenarioVisit = createSpy("hooked up scenario visit");
+          payload               = {featuresResult: featuresResult};
+          spyOn(treeWalker, 'setWorld');
+          spyOn(treeWalker, 'witnessNewScenario');
+          spyOn(Cucumber.Runtime.AstTreeWalker, 'Event').andReturn(event);
+          spyOnStub(supportCodeLibrary, 'hookUpFunction').andReturn(hookedUpScenarioVisit);
+          spyOn(treeWalker, 'broadcastEventAroundUserFunction');
+        });
+
+        it("sets the new World instance", function() {
+          worldInstantiationCompletionCallback(world);
+          expect(treeWalker.setWorld).toHaveBeenCalledWith(world);
+        });
+
+        it("creates a new event about the scenario", function() {
+          worldInstantiationCompletionCallback(world);
+          expect(Cucumber.Runtime.AstTreeWalker.Event).toHaveBeenCalledWith(Cucumber.Runtime.AstTreeWalker.SCENARIO_EVENT_NAME, payload);
+        });
+
+        it("hooks up a function", function() {
+          worldInstantiationCompletionCallback(world);
+          expect(supportCodeLibrary.hookUpFunction).toHaveBeenCalled();
+          expect(supportCodeLibrary.hookUpFunction).toHaveBeenCalledWithAFunctionAsNthParameter(1);
+          expect(supportCodeLibrary.hookUpFunction).toHaveBeenCalledWithValueAsNthParameter(scenario, 2);
+          expect(supportCodeLibrary.hookUpFunction).toHaveBeenCalledWithValueAsNthParameter(world, 3);
+        });
+
+        describe("hooked up function", function() {
+          var hookedUpFunction, hookedUpFunctionCallback;
+
+          beforeEach(function() {
+            worldInstantiationCompletionCallback(world);
+            hookedUpFunction         = supportCodeLibrary.hookUpFunction.mostRecentCall.args[0];
+            hookedUpFunctionCallback = createSpy("hooked up function callback");
+            spyOnStub(scenario, 'acceptVisitor');
+          });
+
+          it("instructs the scenario to accept the tree walker as a visitor", function() {
+            hookedUpFunction(hookedUpFunctionCallback);
+            expect(scenario.acceptVisitor).toHaveBeenCalledWith(treeWalker, hookedUpFunctionCallback);
+          });
+        });
+
+        it("broadcasts the visit of the scenario", function() {
+          worldInstantiationCompletionCallback(world);
+          expect(treeWalker.broadcastEventAroundUserFunction).toHaveBeenCalledWith(event, hookedUpScenarioVisit, callback);
+        });
+
+        it("calls back with the result of the features", function() {
+          featuresVisitCallback();
+          expect(callback).toHaveBeenCalledWith(featuresResult);
+        });
+
+      });
+
     });
   });
 
